@@ -68,7 +68,19 @@ class AttendanceDB:
                 total_evacuated INTEGER DEFAULT 0
             )
         """)
-        
+                # New table for storing login logs
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS login_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                person_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                employee_id TEXT NOT NULL,
+                login_time TEXT NOT NULL,
+                date TEXT NOT NULL,
+                FOREIGN KEY (person_id) REFERENCES persons(id)
+            )
+        """)
+
         conn.commit()
         conn.close()
     
@@ -158,6 +170,23 @@ class AttendanceDB:
         except sqlite3.IntegrityError:
             return False
     
+    def log_login(self, person_id, name, employee_id):
+        """Store a login record when a face is successfully recognized"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        now = datetime.now()
+        date = now.date().isoformat()
+        time_now = now.strftime("%H:%M:%S")
+
+        c.execute("""
+            INSERT INTO login_logs (person_id, name, employee_id, login_time, date)
+            VALUES (?, ?, ?, ?, ?)
+        """, (person_id, name, employee_id, time_now, date))
+
+        conn.commit()
+        conn.close()
+
+
     def get_today_attendance(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -1705,7 +1734,7 @@ async function checkRecognition(){
         if(data.success){
             statusDiv.style.color = 'green';
             statusDiv.innerText = `Welcome ${data.name}! Login Successful.`;
-            setTimeout(() => { window.location.href = '/dashboard'; }, 1000);
+            setTimeout(() => { window.location.href = '/view_logins'; }, 1000);
         } else if(data.detected){
             statusDiv.style.color = 'red';
             statusDiv.innerText = `Unauthorized person detected!`;
@@ -2381,6 +2410,40 @@ def stop_camera():
     camera_manager.stop_camera()
     return redirect(url_for('index'))
 
+@app.route('/view_logins')
+def view_logins():
+    conn = sqlite3.connect('last_attendance_system.db')
+    c = conn.cursor()
+    c.execute("SELECT name, employee_id, date, login_time FROM login_logs ORDER BY id DESC")
+    rows = c.fetchall()
+    conn.close()
+
+    html = """
+    <html>
+    <head>
+        <title>Login Logs</title>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: #f4f4f9; }
+            h2 { text-align:center; }
+            table { margin:auto; border-collapse: collapse; width: 80%; }
+            th, td { padding:10px; border:1px solid #ccc; text-align:center; }
+            th { background-color:#007bff; color:white; }
+            tr:nth-child(even) { background-color:#f2f2f2; }
+        </style>
+    </head>
+    <body>
+        <h2>Login History</h2>
+        <table>
+            <tr><th>Name</th><th>Employee ID</th><th>Date</th><th>Login Time</th></tr>
+            {% for row in rows %}
+            <tr><td>{{ row[0] }}</td><td>{{ row[1] }}</td><td>{{ row[2] }}</td><td>{{ row[3] }}</td></tr>
+            {% endfor %}
+        </table>
+    </body>
+    </html>
+    """
+    return render_template_string(html, rows=rows)
+
 
 # ============================================================================
 # API Routes
@@ -2525,33 +2588,47 @@ def capture_full_view_frame():
 login_last_detected = {'person_id': None, 'name': None, 'timestamp': 0}
 LOGIN_COOLDOWN = 5  # seconds
 
-@app.route('/api/login_status')
-def api_login_status():
-    global login_last_detected
-    if camera_manager.mode != 'login':
-        return jsonify({'success': False, 'detected': False})
+import base64  # Make sure this is imported at the top
 
+@app.route('/api/login_status')
+def login_status():
     frame = camera_manager.read_frame()
     if frame is None:
-        return jsonify({'success': False, 'detected': False})
+        return jsonify({'success': False, 'detected': False, 'message': 'No camera frame'})
 
+    # Recognize face from the current frame
     results = processor.recognize_face(frame)
-    current_time = time.time()
 
     for result in results:
         if result['person_id'] and result['confidence'] > 0.6:
-            last_time = login_last_detected.get('timestamp', 0)
-            if current_time - last_time > LOGIN_COOLDOWN:
-                login_last_detected = {
-                    'person_id': result['person_id'],
-                    'name': result['name'],
-                    'timestamp': current_time
-                }
-                return jsonify({'success': True, 'name': result['name'], 'detected': True})
-        elif result['person_id'] is None:
-            return jsonify({'success': False, 'detected': True})  # Unknown person detected
+            person_id = result['person_id']
+            name = result['name']
 
-    return jsonify({'success': False, 'detected': False})  # No face detected
+            # Get employee_id
+            conn = sqlite3.connect(db.db_path)
+            c = conn.cursor()
+            c.execute("SELECT employee_id FROM persons WHERE id=?", (person_id,))
+            row = c.fetchone()
+            conn.close()
+            employee_id = row[0] if row else "N/A"
+
+            # Log this login to the new table
+            db.log_login(person_id, name, employee_id)
+
+            print(f"✅ Login logged: {name} ({employee_id}) at {datetime.now().strftime('%H:%M:%S')}")
+
+            return jsonify({
+                'success': True,
+                'name': name,
+                'employee_id': employee_id,
+                'message': f'Welcome {name}!'
+            })
+
+    # If a face is detected but not recognized
+    if results:
+        return jsonify({'success': False, 'detected': True, 'message': 'Unauthorized person'})
+
+    return jsonify({'success': False, 'detected': False, 'message': 'No face detected'})
 
 @app.route('/api/complete_registration', methods=['POST'])
 def complete_registration():
@@ -2935,23 +3012,41 @@ def api_login():
         return jsonify({'success': False, 'message': 'No image captured'})
 
     # Convert base64 image to OpenCV frame
-    header, encoded = img_data.split(",", 1)
-    nparr = np.frombuffer(base64.b64decode(encoded), np.uint8)
-    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    try:
+        header, encoded = img_data.split(",", 1)
+        nparr = np.frombuffer(base64.b64decode(encoded), np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Image decoding error: {e}'})
 
     if frame is None or frame.size == 0:
         return jsonify({'success': False, 'message': 'Invalid frame from camera'})
 
-    # Recognize face (reuse your attendance processor)  
+    # Recognize face (reuse your attendance processor)
     results = processor.recognize_face(frame)
 
     # Check recognized faces against registered users
     for result in results:
-        if result['person_id'] and result['confidence'] > 0.6:  # Threshold can be tuned
-            return jsonify({'success': True, 'message': f'Welcome {result["name"]}!'})
+        if result['person_id'] and result['confidence'] > 0.6:  # You can adjust the confidence threshold
+            person_id = result['person_id']
+            name = result['name']
+
+            # ✅ Fetch employee_id from the database
+            conn = sqlite3.connect('last_attendance_system.db')
+            c = conn.cursor()
+            c.execute("SELECT employee_id FROM persons WHERE id = ?", (person_id,))
+            row = c.fetchone()
+            conn.close()
+
+            if row:
+                employee_id = row[0]
+
+                # ✅ Log the successful login
+                db.log_login(person_id, name, employee_id)
+
+                return jsonify({'success': True, 'message': f'Welcome {name}!'})
 
     return jsonify({'success': False, 'message': 'Unauthorized person'})
-
 
 # ============================================================================
 # Main
