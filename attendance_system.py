@@ -507,182 +507,376 @@ full_view_progress = 0
 # ============================================================================
 # HTML Templates
 # ============================================================================
-
 INDEX_HTML = '''<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Attendance & Evacuation System</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            overflow-x: hidden;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 25px;
-            padding: 50px;
-            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
-            animation: fadeIn 0.6s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 3em;
-            font-weight: 700;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 50px;
-            font-size: 1.2em;
-            letter-spacing: 0.5px;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 30px;
-            margin-top: 40px;
-        }
-        .card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 40px;
-            border-radius: 20px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            text-decoration: none;
-            display: block;
-            position: relative;
-            overflow: hidden;
-        }
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
-            opacity: 0;
-            transition: opacity 0.4s;
-        }
-        .card:hover {
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
-        }
-        .card:hover::before {
-            opacity: 1;
-        }
-        .card h2 {
-            font-size: 1.8em;
-            margin-bottom: 15px;
-            position: relative;
-            z-index: 1;
-        }
-        .card p {
-            opacity: 0.95;
-            line-height: 1.8;
-            font-size: 1.05em;
-            position: relative;
-            z-index: 1;
-        }
-        .icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-            display: block;
-            position: relative;
-            z-index: 1;
-            animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        .stats-banner {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            text-align: center;
-            color: white;
-        }
-        .stats-banner h3 {
-            font-size: 1.5em;
-            margin-bottom: 10px;
-        }
-        @media (max-width: 768px) {
-            .container {
-                padding: 30px 20px;
-            }
-            h1 {
-                font-size: 2em;
-            }
-            .grid {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TANSAM - Smart Attendance & Evacuation System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #eef2f3, #dfe9f3);
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 🔹 Navbar */
+    header {
+      background: #ffffff;
+      color: #004e92;
+      padding: 15px 50px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      border-bottom: 3px solid #00b4db;
+    }
+
+    .logo {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .logo .main-text {
+      font-size: 1.8em;
+      font-weight: 700;
+      color: #004e92;
+      letter-spacing: 1px;
+    }
+
+    .logo .sub-text {
+      font-size: 0.9em;
+      font-weight: 500;
+      color: #00b4db;
+      letter-spacing: 0.5px;
+    }
+
+    nav {
+      display: flex;
+      gap: 30px;
+      align-items: center;
+    }
+
+    nav a {
+      color: #004e92;
+      text-decoration: none;
+      font-weight: 500;
+      position: relative;
+      padding-bottom: 3px;
+      transition: all 0.3s ease;
+    }
+
+    nav a:hover {
+      color: #00b4db;
+    }
+
+    nav a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 2px;
+      width: 0%;
+      background: #00b4db;
+      transition: width 0.3s ease;
+    }
+
+    nav a:hover::after {
+      width: 100%;
+    }
+
+    /* 🔹 Hamburger Menu */
+    .menu-toggle {
+      display: none;
+      flex-direction: column;
+      cursor: pointer;
+      gap: 5px;
+    }
+
+    .menu-toggle span {
+      width: 25px;
+      height: 3px;
+      background: #004e92;
+      border-radius: 5px;
+      transition: all 0.3s ease;
+    }
+
+    /* 🔹 Hero Section */
+    .hero {
+      text-align: center;
+      padding: 80px 20px 50px;
+      background: linear-gradient(135deg, #e0f7fa, #f0faff);
+      border-bottom: 3px solid #00b4db;
+      animation: fadeUp 1.2s ease;
+    }
+
+    .hero h1 {
+      font-size: 2em;
+      color: #004e92;
+      margin-bottom: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .hero h2 {
+      font-size: 1.2em;
+      color: #00b4db;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .hero p {
+      font-size: 1em;
+      color: #333;
+      max-width: 700px;
+      margin: 0 auto 20px;
+      line-height: 1.6;
+      font-weight: 500;
+    }
+
+    .hero .keywords {
+      color: #004e92;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .hero .highlight {
+      color: #00b4db;
+      font-weight: 700;
+    }
+
+    /* 🔹 Glowing separator */
+    .hero::after {
+      content: "";
+      display: block;
+      width: 100px;
+      height: 3px;
+      background: linear-gradient(90deg, #004e92, #00b4db);
+      margin: 25px auto 0;
+      border-radius: 5px;
+    }
+
+    /* 🔹 Main Container */
+    .container {
+      flex: 1;
+      margin: 60px auto;
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 1200px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      animation: fadeUp 1s ease;
+    }
+
+    h2.title {
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 1.9em;
+      color: #004e92;
+      position: relative;
+    }
+
+    h2.title::after {
+      content: "";
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, #004e92, #00b4db);
+      display: block;
+      margin: 10px auto 0;
+      border-radius: 10px;
+    }
+
+    .top-row, .bottom-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .bottom-row { gap: 60px; }
+
+    .card {
+      width: 230px;
+      background: linear-gradient(145deg, #ffffff, #f3f3f3);
+      border-radius: 18px;
+      text-align: center;
+      padding: 40px 20px;
+      text-decoration: none;
+      color: #333;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      border: 1px solid #e0e8ff;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+      border-color: #00b4db;
+    }
+
+    .icon {
+      font-size: 2.8em;
+      margin-bottom: 15px;
+      color: #004e92;
+      transition: transform 0.3s ease;
+    }
+
+    .card:hover .icon {
+      transform: scale(1.1);
+      color: #00b4db;
+    }
+
+    .card h3 {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      font-size: 0.9em;
+      opacity: 0.8;
+      line-height: 1.4;
+    }
+
+    /* 🔹 Footer */
+    footer {
+      background: #ffffff;
+      color: #004e92;
+      text-align: center;
+      padding: 15px;
+      font-size: 0.9em;
+      letter-spacing: 0.4px;
+      border-top: 2px solid #00b4db;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 768px) {
+      nav {
+        position: absolute;
+        top: 65px;
+        right: 0;
+        background: #ffffff;
+        flex-direction: column;
+        width: 200px;
+        padding: 15px;
+        gap: 15px;
+        display: none;
+        border-radius: 10px 0 0 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+      }
+
+      nav.show {
+        display: flex;
+      }
+
+      .menu-toggle {
+        display: flex;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔥 Smart Attendance & Evacuation System</h1>
-        <p class="subtitle">AI-Powered Facial Recognition with Real-Time Monitoring</p>
-        <div class="stats-banner">
-            <h3>✨ Welcome to the Future of Attendance Management</h3>
-            <p>Secure • Accurate • Lightning Fast</p>
-        </div>
-        <div class="grid">
-            <a href="/register" class="card">
-                <div class="icon">👤</div>
-                <h2>Register Person</h2>
-                <p>Capture 5 different angles for maximum accuracy and security</p>
-            </a>
-            <a href="/attendance" class="card">
-                <div class="icon">📋</div>
-                <h2>Attendance Mode</h2>
-                <p>Real-time face recognition with instant attendance marking</p>
-            </a>
-            <a href="/evacuation" class="card">
-                <div class="icon">🚨</div>
-                <h2>Evacuation Mode</h2>
-                <p>Emergency monitoring with intelligent line crossing detection</p>
-            </a>
-            <a href="/view_attendance" class="card">
-                <div class="icon">📊</div>
-                <h2>View Attendance</h2>
-                <p>Comprehensive reports and analytics for today's attendance</p>
-            </a>
-            <a href="/view_persons" class="card">
-                <div class="icon">👥</div>
-                <h2>Registered Persons</h2>
-                <p>Complete database of all registered personnel</p>
-            </a>
-             <!-- ✅ New Face Login Card -->
-    <a href="/login" class="card">
-        <div class="icon">🔑</div>
-        <h2>Face Login</h2>
-        <p>Login instantly using your registered face</p>
+
+<header>
+  <div class="logo">
+    <div class="main-text">TANSAM</div>
+    <div class="sub-text">Powered by Siemens</div>
+  </div>
+
+  <div class="menu-toggle" onclick="toggleMenu()">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+
+  <nav id="nav">
+    <a href="/">Home</a>
+    <a href="/register">Register</a>
+    <a href="/attendance">Attendance</a>
+    <a href="/login">Login</a>
+    <a href="/view_attendance">Reports</a>
+    <a href="/view_persons">Employees</a>
+  </nav>
+</header>
+
+
+<div class="container">
+  <h2 class="title">Smart Attendance System</h2>
+
+
+  <div class="top-row">
+    <a href="/register" class="card">
+      <div class="icon">🧑‍💻</div>
+      <h3>Register</h3>
+      <p>Register new employees with face data securely.</p>
     </a>
-        </div>
-    </div>
+
+    <a href="/attendance" class="card">
+      <div class="icon">📋</div>
+      <h3>Attendance</h3>
+      <p>Mark attendance automatically via face recognition.</p>
+    </a>
+
+    <a href="/login" class="card">
+      <div class="icon">🔐</div>
+      <h3>Face Login</h3>
+      <p>Authenticate users through facial verification.</p>
+    </a>
+
+    <a href="/evacuation" class="card">
+      <div class="icon">🚨</div>
+      <h3>Evacuation</h3>
+      <p>Detect emergencies and ensure safe evacuation.</p>
+    </a>
+  </div>
+
+  <div class="bottom-row">
+    <a href="/view_attendance" class="card">
+      <div class="icon">📊</div>
+      <h3>Reports</h3>
+      <p>Analyze attendance reports and daily trends.</p>
+    </a>
+
+    <a href="/view_persons" class="card">
+      <div class="icon">👥</div>
+      <h3>Employees</h3>
+      <p>Manage and view registered employee profiles.</p>
+    </a>
+  </div>
+</div>
+
+<footer>
+  © 2025 TANSAM | Designed by Digital Technology
+</footer>
+
+<script>
+  function toggleMenu() {
+    const nav = document.getElementById('nav');
+    nav.classList.toggle('show');
+  }
+</script>
+
 </body>
-</html>'''
+</html>
+'''
 
 REGISTER_HTML = '''<!DOCTYPE html>
 <html>
