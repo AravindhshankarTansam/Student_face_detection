@@ -820,7 +820,9 @@ INDEX_HTML = '''<!DOCTYPE html>
 
 <div class="container">
   <h2 class="title">Smart Attendance System</h2>
-
+  <h3 style="text-align: center; color: #00b4db; margin-top: -10px; margin-bottom: 40px; font-weight: 600; font-size: 1.1em;">
+    AI-Powered Facial Recognition with Real-Time Monitoring
+  </h3>
 
   <div class="top-row">
     <a href="/register" class="card">
