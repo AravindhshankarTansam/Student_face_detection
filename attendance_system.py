@@ -644,6 +644,12 @@ INDEX_HTML = '''<!DOCTYPE html>
                 <h2>Registered Persons</h2>
                 <p>Complete database of all registered personnel</p>
             </a>
+             <!-- ✅ New Face Login Card -->
+    <a href="/login" class="card">
+        <div class="icon">🔑</div>
+        <h2>Face Login</h2>
+        <p>Login instantly using your registered face</p>
+    </a>
         </div>
     </div>
 </body>
@@ -1655,6 +1661,70 @@ ATTENDANCE_HTML = '''<!DOCTYPE html>
 </body>
 </html>'''
 
+
+
+
+LOGIN_HTML = '''<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Login Mode</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f0f0; padding: 20px; text-align:center; }
+        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 25px; padding: 40px; box-shadow: 0 25px 70px rgba(0,0,0,0.4);}
+        h1 { margin-bottom: 20px; }
+        .camera-container { position: relative; margin-bottom: 20px; }
+        .camera-container img { width: 100%; border-radius: 15px; border: 3px solid #667eea; }
+        .status { font-size: 1.2em; margin-top: 10px; color: red; }
+        button { padding: 12px 30px; font-size: 16px; border-radius: 12px; border:none; background:#667eea; color:white; cursor:pointer; margin-top:15px; }
+        button:hover { background:#764ba2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👤 Face Login</h1>
+        <div class="camera-container">
+            <img id="login-feed" src="/video_feed" alt="Live Camera Feed">
+        </div>
+        <div class="status" id="login-status">Waiting for face recognition...</div>
+        <button onclick="stopLogin()">⏹ Stop & Return Home</button>
+    </div>
+
+<script>
+function stopLogin(){
+    fetch('/stop_camera').then(() => { window.location.href = '/'; });
+}
+
+// Poll the server for recognition status
+async function checkRecognition(){
+    try{
+        const res = await fetch('/api/login_status');
+        const data = await res.json();
+        const statusDiv = document.getElementById('login-status');
+        if(data.success){
+            statusDiv.style.color = 'green';
+            statusDiv.innerText = `Welcome ${data.name}! Login Successful.`;
+            setTimeout(() => { window.location.href = '/dashboard'; }, 1000);
+        } else if(data.detected){
+            statusDiv.style.color = 'red';
+            statusDiv.innerText = `Unauthorized person detected!`;
+        } else {
+            statusDiv.style.color = 'blue';
+            statusDiv.innerText = 'Waiting for face...';
+        }
+    } catch(e){
+        console.error(e);
+    }
+}
+
+// Check every 1 second
+setInterval(checkRecognition, 1000);
+</script>
+</body>
+</html>'''
+
+
 EVACUATION_HTML = '''<!DOCTYPE html>
 <html>
 <head>
@@ -2451,6 +2521,37 @@ def capture_full_view_frame():
             'message': 'No face in this frame',
             'total_captured': len(registration_encodings)
         })
+# Global dictionary to store last detected person in login mode
+login_last_detected = {'person_id': None, 'name': None, 'timestamp': 0}
+LOGIN_COOLDOWN = 5  # seconds
+
+@app.route('/api/login_status')
+def api_login_status():
+    global login_last_detected
+    if camera_manager.mode != 'login':
+        return jsonify({'success': False, 'detected': False})
+
+    frame = camera_manager.read_frame()
+    if frame is None:
+        return jsonify({'success': False, 'detected': False})
+
+    results = processor.recognize_face(frame)
+    current_time = time.time()
+
+    for result in results:
+        if result['person_id'] and result['confidence'] > 0.6:
+            last_time = login_last_detected.get('timestamp', 0)
+            if current_time - last_time > LOGIN_COOLDOWN:
+                login_last_detected = {
+                    'person_id': result['person_id'],
+                    'name': result['name'],
+                    'timestamp': current_time
+                }
+                return jsonify({'success': True, 'name': result['name'], 'detected': True})
+        elif result['person_id'] is None:
+            return jsonify({'success': False, 'detected': True})  # Unknown person detected
+
+    return jsonify({'success': False, 'detected': False})  # No face detected
 
 @app.route('/api/complete_registration', methods=['POST'])
 def complete_registration():
@@ -2687,7 +2788,32 @@ def generate_frames():
             cv2.putText(frame, f"Faces Detected: {len(results)}", (20, 85),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
         
-        # EVACUATION MODE
+        elif camera_manager.mode == 'login':
+            # Process every 3rd frame for performance
+            if frame_count % 3 == 0:
+                results = processor.recognize_face(frame)
+                
+                recognized = False
+                for result in results:
+                    (x1, y1, x2, y2) = result['box']
+                    if result['person_id'] and result['confidence'] > 0.6:
+                        recognized = True
+                        name = result['name']
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 3)
+                        cv2.putText(frame, f"LOGIN SUCCESS: {name}", (x1, y1 - 15),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    else:
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                        cv2.putText(frame, "UNAUTHORIZED PERSON", (x1, y1 - 15),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+                if not results:
+                    cv2.putText(frame, "Waiting for face...", (50, 60),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+            
+            # Label at top
+            cv2.putText(frame, "LOGIN MODE ACTIVE", (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         # EVACUATION MODE
         elif camera_manager.mode == 'evacuation':
             current_time = time.time()
@@ -2790,6 +2916,41 @@ def generate_frames():
 def video_feed():
     return Response(generate_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+@app.route('/login')
+def login_page():
+    processor.load_known_faces(db)
+    camera_manager.mode = 'login'
+    camera_manager.start_camera()
+    return render_template_string(LOGIN_HTML)
+
+
+import base64
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.json
+    img_data = data.get('image')
+
+    if not img_data:
+        return jsonify({'success': False, 'message': 'No image captured'})
+
+    # Convert base64 image to OpenCV frame
+    header, encoded = img_data.split(",", 1)
+    nparr = np.frombuffer(base64.b64decode(encoded), np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    if frame is None or frame.size == 0:
+        return jsonify({'success': False, 'message': 'Invalid frame from camera'})
+
+    # Recognize face (reuse your attendance processor)  
+    results = processor.recognize_face(frame)
+
+    # Check recognized faces against registered users
+    for result in results:
+        if result['person_id'] and result['confidence'] > 0.6:  # Threshold can be tuned
+            return jsonify({'success': True, 'message': f'Welcome {result["name"]}!'})
+
+    return jsonify({'success': False, 'message': 'Unauthorized person'})
 
 
 # ============================================================================
