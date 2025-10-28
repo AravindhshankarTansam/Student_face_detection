@@ -68,7 +68,19 @@ class AttendanceDB:
                 total_evacuated INTEGER DEFAULT 0
             )
         """)
-        
+                # New table for storing login logs
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS login_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                person_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                employee_id TEXT NOT NULL,
+                login_time TEXT NOT NULL,
+                date TEXT NOT NULL,
+                FOREIGN KEY (person_id) REFERENCES persons(id)
+            )
+        """)
+
         conn.commit()
         conn.close()
     
@@ -158,6 +170,23 @@ class AttendanceDB:
         except sqlite3.IntegrityError:
             return False
     
+    def log_login(self, person_id, name, employee_id):
+        """Store a login record when a face is successfully recognized"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        now = datetime.now()
+        date = now.date().isoformat()
+        time_now = now.strftime("%H:%M:%S")
+
+        c.execute("""
+            INSERT INTO login_logs (person_id, name, employee_id, login_time, date)
+            VALUES (?, ?, ?, ?, ?)
+        """, (person_id, name, employee_id, time_now, date))
+
+        conn.commit()
+        conn.close()
+
+
     def get_today_attendance(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -478,176 +507,368 @@ full_view_progress = 0
 # ============================================================================
 # HTML Templates
 # ============================================================================
-
 INDEX_HTML = '''<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Attendance & Evacuation System</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            overflow-x: hidden;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 25px;
-            padding: 50px;
-            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
-            animation: fadeIn 0.6s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 3em;
-            font-weight: 700;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 50px;
-            font-size: 1.2em;
-            letter-spacing: 0.5px;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 30px;
-            margin-top: 40px;
-        }
-        .card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 40px;
-            border-radius: 20px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            text-decoration: none;
-            display: block;
-            position: relative;
-            overflow: hidden;
-        }
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
-            opacity: 0;
-            transition: opacity 0.4s;
-        }
-        .card:hover {
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
-        }
-        .card:hover::before {
-            opacity: 1;
-        }
-        .card h2 {
-            font-size: 1.8em;
-            margin-bottom: 15px;
-            position: relative;
-            z-index: 1;
-        }
-        .card p {
-            opacity: 0.95;
-            line-height: 1.8;
-            font-size: 1.05em;
-            position: relative;
-            z-index: 1;
-        }
-        .icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-            display: block;
-            position: relative;
-            z-index: 1;
-            animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        .stats-banner {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            text-align: center;
-            color: white;
-        }
-        .stats-banner h3 {
-            font-size: 1.5em;
-            margin-bottom: 10px;
-        }
-        @media (max-width: 768px) {
-            .container {
-                padding: 30px 20px;
-            }
-            h1 {
-                font-size: 2em;
-            }
-            .grid {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TANSAM - Smart Attendance & Evacuation System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #eef2f3, #dfe9f3);
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 🔹 Navbar */
+    header {
+      background: #ffffff;
+      color: #004e92;
+      padding: 15px 50px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      border-bottom: 3px solid #00b4db;
+    }
+
+    .logo {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .logo .main-text {
+      font-size: 1.8em;
+      font-weight: 700;
+      color: #004e92;
+      letter-spacing: 1px;
+    }
+
+    .logo .sub-text {
+      font-size: 0.9em;
+      font-weight: 500;
+      color: #00b4db;
+      letter-spacing: 0.5px;
+    }
+
+    nav {
+      display: flex;
+      gap: 30px;
+      align-items: center;
+    }
+
+    nav a {
+      color: #004e92;
+      text-decoration: none;
+      font-weight: 500;
+      position: relative;
+      padding-bottom: 3px;
+      transition: all 0.3s ease;
+    }
+
+    nav a:hover {
+      color: #00b4db;
+    }
+
+    nav a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 2px;
+      width: 0%;
+      background: #00b4db;
+      transition: width 0.3s ease;
+    }
+
+    nav a:hover::after {
+      width: 100%;
+    }
+
+    /* 🔹 Hamburger Menu */
+    .menu-toggle {
+      display: none;
+      flex-direction: column;
+      cursor: pointer;
+      gap: 5px;
+    }
+
+    .menu-toggle span {
+      width: 25px;
+      height: 3px;
+      background: #004e92;
+      border-radius: 5px;
+      transition: all 0.3s ease;
+    }
+
+    /* 🔹 Hero Section */
+    .hero {
+      text-align: center;
+      padding: 80px 20px 50px;
+      background: linear-gradient(135deg, #e0f7fa, #f0faff);
+      border-bottom: 3px solid #00b4db;
+      animation: fadeUp 1.2s ease;
+    }
+
+    .hero h1 {
+      font-size: 2em;
+      color: #004e92;
+      margin-bottom: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .hero h2 {
+      font-size: 1.2em;
+      color: #00b4db;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .hero p {
+      font-size: 1em;
+      color: #333;
+      max-width: 700px;
+      margin: 0 auto 20px;
+      line-height: 1.6;
+      font-weight: 500;
+    }
+
+    .hero .keywords {
+      color: #004e92;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .hero .highlight {
+      color: #00b4db;
+      font-weight: 700;
+    }
+
+    /* 🔹 Glowing separator */
+    .hero::after {
+      content: "";
+      display: block;
+      width: 100px;
+      height: 3px;
+      background: linear-gradient(90deg, #004e92, #00b4db);
+      margin: 25px auto 0;
+      border-radius: 5px;
+    }
+
+    /* 🔹 Main Container */
+    .container {
+      flex: 1;
+      margin: 60px auto;
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 1200px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      animation: fadeUp 1s ease;
+    }
+
+    h2.title {
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 1.9em;
+      color: #004e92;
+      position: relative;
+    }
+
+    h2.title::after {
+      content: "";
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, #004e92, #00b4db);
+      display: block;
+      margin: 10px auto 0;
+      border-radius: 10px;
+    }
+
+    .top-row, .bottom-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .bottom-row { gap: 60px; }
+
+    .card {
+      width: 230px;
+      background: linear-gradient(145deg, #ffffff, #f3f3f3);
+      border-radius: 18px;
+      text-align: center;
+      padding: 40px 20px;
+      text-decoration: none;
+      color: #333;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      border: 1px solid #e0e8ff;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+      border-color: #00b4db;
+    }
+
+    .icon {
+      font-size: 2.8em;
+      margin-bottom: 15px;
+      color: #004e92;
+      transition: transform 0.3s ease;
+    }
+
+    .card:hover .icon {
+      transform: scale(1.1);
+      color: #00b4db;
+    }
+
+    .card h3 {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      font-size: 0.9em;
+      opacity: 0.8;
+      line-height: 1.4;
+    }
+
+    /* 🔹 Footer */
+    footer {
+      background: #ffffff;
+      color: #004e92;
+      text-align: center;
+      padding: 15px;
+      font-size: 0.9em;
+      letter-spacing: 0.4px;
+      border-top: 2px solid #00b4db;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 768px) {
+      nav {
+        position: absolute;
+        top: 65px;
+        right: 0;
+        background: #ffffff;
+        flex-direction: column;
+        width: 200px;
+        padding: 15px;
+        gap: 15px;
+        display: none;
+        border-radius: 10px 0 0 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+      }
+
+      nav.show {
+        display: flex;
+      }
+
+      .menu-toggle {
+        display: flex;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔥 Smart Attendance & Evacuation System</h1>
-        <p class="subtitle">AI-Powered Facial Recognition with Real-Time Monitoring</p>
-        <div class="stats-banner">
-            <h3>✨ Welcome to the Future of Attendance Management</h3>
-            <p>Secure • Accurate • Lightning Fast</p>
-        </div>
-        <div class="grid">
-            <a href="/register" class="card">
-                <div class="icon">👤</div>
-                <h2>Register Person</h2>
-                <p>Capture 5 different angles for maximum accuracy and security</p>
-            </a>
-            <a href="/attendance" class="card">
-                <div class="icon">📋</div>
-                <h2>Attendance Mode</h2>
-                <p>Real-time face recognition with instant attendance marking</p>
-            </a>
-            <a href="/evacuation" class="card">
-                <div class="icon">🚨</div>
-                <h2>Evacuation Mode</h2>
-                <p>Emergency monitoring with intelligent line crossing detection</p>
-            </a>
-            <a href="/view_attendance" class="card">
-                <div class="icon">📊</div>
-                <h2>View Attendance</h2>
-                <p>Comprehensive reports and analytics for today's attendance</p>
-            </a>
-            <a href="/view_persons" class="card">
-                <div class="icon">👥</div>
-                <h2>Registered Persons</h2>
-                <p>Complete database of all registered personnel</p>
-            </a>
-        </div>
-    </div>
+
+<header>
+  <div class="logo">
+    <div class="main-text">TANSAM</div>
+    <div class="sub-text">Powered by Siemens</div>
+  </div>
+
+  <div class="menu-toggle" onclick="toggleMenu()">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+
+  <nav id="nav">
+    <a href="/">Home</a>
+    <a href="/register">Register</a>
+    <a href="/login">Login</a>
+    <a href="/view_attendance">Reports</a>
+    <a href="/view_persons">Employees</a>
+  </nav>
+</header>
+
+
+<div class="container">
+  <h2 class="title">Smart Attendance System</h2>
+  <h3 style="text-align: center; color: #00b4db; margin-top: -10px; margin-bottom: 40px; font-weight: 600; font-size: 1.1em;">
+    AI-Powered Facial Recognition with Real-Time Monitoring
+  </h3>
+
+  <div class="top-row">
+    <a href="/register" class="card">
+      <div class="icon">🧑‍💻</div>
+      <h3>Register</h3>
+      <p>Register new employees with face data securely.</p>
+    </a>
+
+ 
+
+    <a href="/login" class="card">
+      <div class="icon">🔐</div>
+      <h3>Face Login</h3>
+      <p>Authenticate users through facial verification.</p>
+    </a>
+
+  </div>
+
+  <div class="bottom-row">
+    <a href="/view_attendance" class="card">
+      <div class="icon">📊</div>
+      <h3>Reports</h3>
+      <p>Analyze attendance reports and daily trends.</p>
+    </a>
+
+    <a href="/view_persons" class="card">
+      <div class="icon">👥</div>
+      <h3>Employees</h3>
+      <p>Manage and view registered employee profiles.</p>
+    </a>
+  </div>
+</div>
+
+<footer>
+  © 2025 TANSAM | Designed by Digital Technology
+</footer>
+
+<script>
+  function toggleMenu() {
+    const nav = document.getElementById('nav');
+    nav.classList.toggle('show');
+  }
+</script>
+
 </body>
-</html>'''
+</html>
+'''
 
 REGISTER_HTML = '''<!DOCTYPE html>
 <html>
@@ -1655,6 +1876,70 @@ ATTENDANCE_HTML = '''<!DOCTYPE html>
 </body>
 </html>'''
 
+
+
+
+LOGIN_HTML = '''<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Login Mode</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f0f0; padding: 20px; text-align:center; }
+        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 25px; padding: 40px; box-shadow: 0 25px 70px rgba(0,0,0,0.4);}
+        h1 { margin-bottom: 20px; }
+        .camera-container { position: relative; margin-bottom: 20px; }
+        .camera-container img { width: 100%; border-radius: 15px; border: 3px solid #667eea; }
+        .status { font-size: 1.2em; margin-top: 10px; color: red; }
+        button { padding: 12px 30px; font-size: 16px; border-radius: 12px; border:none; background:#667eea; color:white; cursor:pointer; margin-top:15px; }
+        button:hover { background:#764ba2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👤 Face Login</h1>
+        <div class="camera-container">
+            <img id="login-feed" src="/video_feed" alt="Live Camera Feed">
+        </div>
+        <div class="status" id="login-status">Waiting for face recognition...</div>
+        <button onclick="stopLogin()">⏹ Stop & Return Home</button>
+    </div>
+
+<script>
+function stopLogin(){
+    fetch('/stop_camera').then(() => { window.location.href = '/'; });
+}
+
+// Poll the server for recognition status
+async function checkRecognition(){
+    try{
+        const res = await fetch('/api/login_status');
+        const data = await res.json();
+        const statusDiv = document.getElementById('login-status');
+        if(data.success){
+            statusDiv.style.color = 'green';
+            statusDiv.innerText = `Welcome ${data.name}! Login Successful.`;
+            setTimeout(() => { window.location.href = '/view_logins'; }, 1000);
+        } else if(data.detected){
+            statusDiv.style.color = 'red';
+            statusDiv.innerText = `Unauthorized person detected!`;
+        } else {
+            statusDiv.style.color = 'blue';
+            statusDiv.innerText = 'Waiting for face...';
+        }
+    } catch(e){
+        console.error(e);
+    }
+}
+
+// Check every 1 second
+setInterval(checkRecognition, 1000);
+</script>
+</body>
+</html>'''
+
+
 EVACUATION_HTML = '''<!DOCTYPE html>
 <html>
 <head>
@@ -2311,6 +2596,40 @@ def stop_camera():
     camera_manager.stop_camera()
     return redirect(url_for('index'))
 
+@app.route('/view_logins')
+def view_logins():
+    conn = sqlite3.connect('last_attendance_system.db')
+    c = conn.cursor()
+    c.execute("SELECT name, employee_id, date, login_time FROM login_logs ORDER BY id DESC")
+    rows = c.fetchall()
+    conn.close()
+
+    html = """
+    <html>
+    <head>
+        <title>Login Logs</title>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: #f4f4f9; }
+            h2 { text-align:center; }
+            table { margin:auto; border-collapse: collapse; width: 80%; }
+            th, td { padding:10px; border:1px solid #ccc; text-align:center; }
+            th { background-color:#007bff; color:white; }
+            tr:nth-child(even) { background-color:#f2f2f2; }
+        </style>
+    </head>
+    <body>
+        <h2>Login History</h2>
+        <table>
+            <tr><th>Name</th><th>Employee ID</th><th>Date</th><th>Login Time</th></tr>
+            {% for row in rows %}
+            <tr><td>{{ row[0] }}</td><td>{{ row[1] }}</td><td>{{ row[2] }}</td><td>{{ row[3] }}</td></tr>
+            {% endfor %}
+        </table>
+    </body>
+    </html>
+    """
+    return render_template_string(html, rows=rows)
+
 
 # ============================================================================
 # API Routes
@@ -2451,6 +2770,51 @@ def capture_full_view_frame():
             'message': 'No face in this frame',
             'total_captured': len(registration_encodings)
         })
+# Global dictionary to store last detected person in login mode
+login_last_detected = {'person_id': None, 'name': None, 'timestamp': 0}
+LOGIN_COOLDOWN = 5  # seconds
+
+import base64  # Make sure this is imported at the top
+
+@app.route('/api/login_status')
+def login_status():
+    frame = camera_manager.read_frame()
+    if frame is None:
+        return jsonify({'success': False, 'detected': False, 'message': 'No camera frame'})
+
+    # Recognize face from the current frame
+    results = processor.recognize_face(frame)
+
+    for result in results:
+        if result['person_id'] and result['confidence'] > 0.6:
+            person_id = result['person_id']
+            name = result['name']
+
+            # Get employee_id
+            conn = sqlite3.connect(db.db_path)
+            c = conn.cursor()
+            c.execute("SELECT employee_id FROM persons WHERE id=?", (person_id,))
+            row = c.fetchone()
+            conn.close()
+            employee_id = row[0] if row else "N/A"
+
+            # Log this login to the new table
+            db.log_login(person_id, name, employee_id)
+
+            print(f"✅ Login logged: {name} ({employee_id}) at {datetime.now().strftime('%H:%M:%S')}")
+
+            return jsonify({
+                'success': True,
+                'name': name,
+                'employee_id': employee_id,
+                'message': f'Welcome {name}!'
+            })
+
+    # If a face is detected but not recognized
+    if results:
+        return jsonify({'success': False, 'detected': True, 'message': 'Unauthorized person'})
+
+    return jsonify({'success': False, 'detected': False, 'message': 'No face detected'})
 
 @app.route('/api/complete_registration', methods=['POST'])
 def complete_registration():
@@ -2687,7 +3051,32 @@ def generate_frames():
             cv2.putText(frame, f"Faces Detected: {len(results)}", (20, 85),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
         
-        # EVACUATION MODE
+        elif camera_manager.mode == 'login':
+            # Process every 3rd frame for performance
+            if frame_count % 3 == 0:
+                results = processor.recognize_face(frame)
+                
+                recognized = False
+                for result in results:
+                    (x1, y1, x2, y2) = result['box']
+                    if result['person_id'] and result['confidence'] > 0.6:
+                        recognized = True
+                        name = result['name']
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 3)
+                        cv2.putText(frame, f"LOGIN SUCCESS: {name}", (x1, y1 - 15),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    else:
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                        cv2.putText(frame, "UNAUTHORIZED PERSON", (x1, y1 - 15),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+                if not results:
+                    cv2.putText(frame, "Waiting for face...", (50, 60),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+            
+            # Label at top
+            cv2.putText(frame, "LOGIN MODE ACTIVE", (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         # EVACUATION MODE
         elif camera_manager.mode == 'evacuation':
             current_time = time.time()
@@ -2790,7 +3179,60 @@ def generate_frames():
 def video_feed():
     return Response(generate_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+@app.route('/login')
+def login_page():
+    processor.load_known_faces(db)
+    camera_manager.mode = 'login'
+    camera_manager.start_camera()
+    return render_template_string(LOGIN_HTML)
 
+
+import base64
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.json
+    img_data = data.get('image')
+
+    if not img_data:
+        return jsonify({'success': False, 'message': 'No image captured'})
+
+    # Convert base64 image to OpenCV frame
+    try:
+        header, encoded = img_data.split(",", 1)
+        nparr = np.frombuffer(base64.b64decode(encoded), np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Image decoding error: {e}'})
+
+    if frame is None or frame.size == 0:
+        return jsonify({'success': False, 'message': 'Invalid frame from camera'})
+
+    # Recognize face (reuse your attendance processor)
+    results = processor.recognize_face(frame)
+
+    # Check recognized faces against registered users
+    for result in results:
+        if result['person_id'] and result['confidence'] > 0.6:  # You can adjust the confidence threshold
+            person_id = result['person_id']
+            name = result['name']
+
+            # ✅ Fetch employee_id from the database
+            conn = sqlite3.connect('last_attendance_system.db')
+            c = conn.cursor()
+            c.execute("SELECT employee_id FROM persons WHERE id = ?", (person_id,))
+            row = c.fetchone()
+            conn.close()
+
+            if row:
+                employee_id = row[0]
+
+                # ✅ Log the successful login
+                db.log_login(person_id, name, employee_id)
+
+                return jsonify({'success': True, 'message': f'Welcome {name}!'})
+
+    return jsonify({'success': False, 'message': 'Unauthorized person'})
 
 # ============================================================================
 # Main
