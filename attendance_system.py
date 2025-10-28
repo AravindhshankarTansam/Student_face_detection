@@ -810,7 +810,6 @@ INDEX_HTML = '''<!DOCTYPE html>
   <nav id="nav">
     <a href="/">Home</a>
     <a href="/register">Register</a>
-    <a href="/attendance">Attendance</a>
     <a href="/login">Login</a>
     <a href="/view_attendance">Reports</a>
     <a href="/view_persons">Employees</a>
@@ -831,11 +830,7 @@ INDEX_HTML = '''<!DOCTYPE html>
       <p>Register new employees with face data securely.</p>
     </a>
 
-    <a href="/attendance" class="card">
-      <div class="icon">📋</div>
-      <h3>Attendance</h3>
-      <p>Mark attendance automatically via face recognition.</p>
-    </a>
+ 
 
     <a href="/login" class="card">
       <div class="icon">🔐</div>
@@ -843,11 +838,6 @@ INDEX_HTML = '''<!DOCTYPE html>
       <p>Authenticate users through facial verification.</p>
     </a>
 
-    <a href="/evacuation" class="card">
-      <div class="icon">🚨</div>
-      <h3>Evacuation</h3>
-      <p>Detect emergencies and ensure safe evacuation.</p>
-    </a>
   </div>
 
   <div class="bottom-row">
