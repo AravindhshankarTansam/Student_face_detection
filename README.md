@@ -31,6 +31,10 @@ This system provides a comprehensive solution for:
 
 ---
 
+
+pip freeze > requirements.txt
+
+
 ## 📦 Installation
 
 ### Step 1: Install Required Packages
