@@ -53,7 +53,15 @@ class AttendanceDB:
                 total_evacuated INTEGER DEFAULT 0
             )
         """)
-        
+        c.execute("""
+    CREATE TABLE IF NOT EXISTS admins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        name TEXT NOT NULL
+    )
+""")
+
         c.execute("""
             CREATE TABLE IF NOT EXISTS login_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +73,14 @@ class AttendanceDB:
                 FOREIGN KEY (person_id) REFERENCES persons(id)
             )
         """)
+         # ✅ Add default admin if not exists
+        c.execute("SELECT * FROM admins WHERE email = ?", ("admin@example.com",))
+        if not c.fetchone():
+            c.execute("""
+                INSERT INTO admins (email, password, name)
+                VALUES (?, ?, ?)
+            """, ("admin@example.com", "admin123", "Super Admin"))
+            print("✅ Default admin created: admin@example.com / admin123")
 
         conn.commit()
         conn.close()
@@ -134,24 +150,32 @@ class AttendanceDB:
         conn.close()
         return encodings, person_ids, names
     
-    def mark_attendance(self, person_id):
-        try:
-            conn = sqlite3.connect(self.db_path)
-            c = conn.cursor()
-            
-            today = datetime.now().date().isoformat()
-            now = datetime.now().isoformat()
-            
+    def mark_attendance(self, person_id, name, employee_id):
+        """Mark today's attendance for a recognized person"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        time_now = datetime.now().strftime("%H:%M:%S")
+
+        # ✅ Check if already marked today
+        c.execute("""
+            SELECT id FROM attendance
+            WHERE person_id = ? AND date = ?
+        """, (person_id, today))
+
+        # Only mark if not already marked today
+        if not c.fetchone():
             c.execute("""
                 INSERT INTO attendance (person_id, date, entry_time)
                 VALUES (?, ?, ?)
-            """, (person_id, today, now))
-            
+            """, (person_id, today, time_now))
             conn.commit()
-            conn.close()
-            return True
-        except sqlite3.IntegrityError:
-            return False
+            print(f"✅ Attendance marked for ID {person_id} at {time_now}")
+
+        conn.close()
+
+
     
     def log_login(self, person_id, name, employee_id):
         """Store a login record when a face is successfully recognized"""

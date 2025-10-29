@@ -8,11 +8,13 @@ import sqlite3
 import pickle
 import uuid
 import base64
+import os
 
 from config import Config
 from modules.database import AttendanceDB
 from modules.face_processor import FaceProcessor
 from modules.camera_manager import CameraManager
+from flask import Flask, render_template, request, redirect, session, url_for, jsonify,flash
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -35,6 +37,63 @@ evacuated_persons = set()
 evacuation_cooldown = {}
 EVACUATION_COOLDOWN_TIME = 30
 full_view_progress = 0
+
+
+app.secret_key = "supersecretkey"  # for sessions
+
+DB_PATH = "last_attendance_system.db"
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@app.route("/admin_login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+
+        conn = get_db_connection()
+        admin = conn.execute("SELECT * FROM admins WHERE email = ? AND password = ?", (email, password)).fetchone()
+        conn.close()
+
+        if admin:
+            session["admin"] = admin["email"]
+            flash("Welcome Admin!", "success")
+            return redirect(url_for("admin_dashboard"))
+        else:
+            flash("Invalid credentials", "danger")
+
+    return render_template("admin_login.html")
+
+@app.route("/admin/dashboard")
+def admin_dashboard():
+    if "admin" not in session:
+        flash("Please login first.", "warning")
+        return redirect(url_for("admin_login"))
+
+    conn = get_db_connection()
+    persons = conn.execute("SELECT * FROM persons").fetchall()
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    attendance = conn.execute("""
+        SELECT p.name, p.employee_id, a.entry_time
+        FROM attendance a
+        JOIN persons p ON p.id = a.person_id
+        WHERE a.date = ?
+    """, (today,)).fetchall()
+
+    conn.close()
+
+    return render_template("admin_dashboard.html", persons=persons, attendance=attendance)
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin", None)
+    flash("Logged out successfully.", "info")
+    return redirect(url_for("admin_login"))
 
 @app.route('/')
 def index():
@@ -222,70 +281,61 @@ def start_registration():
     
     return jsonify({'success': True, 'name': name, 'employee_id': employee_id})
 
+
 @app.route('/api/capture_face', methods=['POST'])
 def capture_face():
     global registration_encodings
-    
+
     data = request.json
     angle = data.get('angle')
-    
+    employee_id = data.get('employee_id')
+    name = data.get('name')
+
+    # 🧩 Step 1 — Validate input
     if not angle:
         return jsonify({'success': False, 'message': 'Angle required'})
-    
-    if angle in registration_encodings:
-        return jsonify({'success': False, 'message': 'This angle already captured'})
-    
-    max_attempts = 10
-    frame = None
-    
-    for attempt in range(max_attempts):
-        frame = camera_manager.read_frame()
-        if frame is not None and frame.size > 0:
-            break
-        time.sleep(0.1)
-    
+
+    if not employee_id or not name:
+        return jsonify({'success': False, 'message': 'Employee ID and name are required'})
+
+    # 🧩 Step 2 — Capture camera frame
+    frame = camera_manager.read_frame()
     if frame is None or frame.size == 0:
-        return jsonify({'success': False, 'message': 'Camera not ready. Please ensure camera is connected and try again.'})
-    
+        return jsonify({'success': False, 'message': 'Camera not ready'})
+
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = processor.face_cascade.detectMultiScale(gray, 1.1, 5, minSize=(80, 80))
 
-    # ✅ Ensure the cascade is loaded properly
-    if not hasattr(processor, 'face_cascade') or processor.face_cascade.empty():
-        print("⚠️ Reinitializing face cascade...")
-        processor.face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-        )
-
-    # ✅ Detect faces safely
-    faces = []
-    try:
-        faces = processor.face_cascade.detectMultiScale(
-            gray,
-            scaleFactor=1.1,
-            minNeighbors=5,
-            minSize=(80, 80)
-        )
-    except cv2.error as e:
-        print(f"⚠️ Face detection failed: {e}")
-        faces = []
-    
     if len(faces) == 0:
-        return jsonify({'success': False, 'message': 'No face detected! Please position your face clearly.'})
-    
+        return jsonify({'success': False, 'message': 'No face detected! Please look at the camera clearly.'})
     if len(faces) > 1:
-        return jsonify({'success': False, 'message': 'Multiple faces detected! Only one face allowed.'})
-    
+        return jsonify({'success': False, 'message': 'Multiple faces detected! Only one person allowed.'})
+
     (x, y, w, h) = faces[0]
-    face_roi = gray[y:y+h, x:x+w]
-    face_resized = cv2.resize(face_roi, (200, 200))
-    
-    registration_encodings[angle] = face_resized
-    
+    face_crop = frame[y:y+h, x:x+w]
+
+    # 🧩 Step 3 — Save user’s face image (no “unknown”)
+    faces_folder = os.path.join('static', 'faces')
+    os.makedirs(faces_folder, exist_ok=True)
+
+    image_filename = f"{employee_id}_{angle}.jpg"
+    image_path = os.path.join(faces_folder, image_filename)
+    cv2.imwrite(image_path, face_crop)
+
+    print(f"✅ Saved face for {employee_id}: {image_path}")
+
+    # 🧩 Step 4 — Update image path in database
+    conn = sqlite3.connect(db.db_path)
+    c = conn.cursor()
+    c.execute("UPDATE persons SET face_image=? WHERE employee_id=?", (f"/static/faces/{image_filename}", employee_id))
+    conn.commit()
+    conn.close()
+
     return jsonify({
         'success': True,
         'angle': angle,
-        'count': len(registration_encodings),
-        'total': 5
+        'employee_id': employee_id,
+        'message': f'Face for {name} ({employee_id}) saved successfully!'
     })
 
 @app.route('/api/complete_registration', methods=['POST'])
@@ -347,15 +397,33 @@ def login_status():
             employee_id = row[0] if row else "N/A"
 
             db.log_login(person_id, name, employee_id)
+            db.mark_attendance(person_id, name, employee_id)
+
+
+            # ✅ Load the saved face image path (for now we show front image)
+            # ✅ Load that specific user's saved face image
+            faces_folder = os.path.join('static', 'faces')
+            face_image_filename = f"{employee_id}_front.jpg"
+            face_image_path = os.path.join(faces_folder, face_image_filename)
+
+            # Check if the user's face image exists
+            if not os.path.exists(face_image_path):
+                face_image_path = '/static/faces/default.jpg'  # fallback if not found
+            else:
+                # Convert to URL path (not system path)
+                face_image_path = f"/static/faces/{employee_id}_front.jpg"
+
 
             print(f"✅ Login logged: {name} ({employee_id}) at {datetime.now().strftime('%H:%M:%S')}")
 
             return jsonify({
-                'success': True,
-                'name': name,
-                'employee_id': employee_id,
-                'message': f'Welcome {name}!'
-            })
+    'success': True,
+    'name': name,
+    'employee_id': employee_id,
+    'image': face_image_path,
+    'message': f'Welcome {name}!'
+})
+
 
     if results:
         return jsonify({'success': False, 'detected': True, 'message': 'Unauthorized person'})
