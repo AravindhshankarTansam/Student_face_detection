@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Face Login{% endblock %}
+
+{% block styles %}
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #ffffff, #dbe5f1);
+        margin: 0;
+        padding: 0;
+        text-align: center;
+    }
+
+    .container {
+        max-width: 900px;
+        margin: 40px auto;
+        background: #fff;
+        border-radius: 25px;
+        padding: 40px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    h2.title {
+        color: #004e92;
+        margin-bottom: 15px;
+    }
+
+    .login-camera-container img {
+        width: 100%;
+        max-width: 700px;
+        border-radius: 15px;
+        border: 4px solid #004e92;
+    }
+
+    .login-status {
+        font-size: 1.2em;
+        margin-top: 15px;
+        color: #004e92;
+        font-weight: 500;
+    }
+
+    .login-button {
+        padding: 12px 30px;
+        font-size: 16px;
+        border-radius: 12px;
+        border: none;
+        background: #004e92;
+        color: white;
+        cursor: pointer;
+        margin-top: 25px;
+        transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+    .login-button:hover {
+        background: #002e60;
+        transform: scale(1.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <h1>👤 Face Login</h1>
+    <div class="login-camera-container">
+        <img id="login-feed" src="/video_feed?t=login" alt="Live Camera Feed">
+
+    </div>
+    <div class="login-status" id="login-status">Waiting for face recognition...</div>
+    <button class="login-button" onclick="stopLogin()">⏹ Stop & Return Home</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function stopLogin(){
+    fetch('/stop_camera').then(() => { window.location.href = '/'; });
+}
+
+// Poll the server for recognition status
+async function checkRecognition(){
+    try{
+        const res = await fetch('/api/login_status');
+        const data = await res.json();
+        const statusDiv = document.getElementById('login-status');
+        if(data.success){
+            statusDiv.style.color = 'green';
+            statusDiv.innerText = `Welcome ${data.name}! Login Successful.`;
+            setTimeout(() => { window.location.href = '/view_logins'; }, 1000);
+        } else if(data.detected){
+            statusDiv.style.color = 'red';
+            statusDiv.innerText = `Unauthorized person detected!`;
+        } else {
+            statusDiv.style.color = 'blue';
+            statusDiv.innerText = 'Waiting for face...';
+        }
+    } catch(e){
+        console.error(e);
+    }
+}
+
+// Check every 1 second
+setInterval(checkRecognition, 1000);
+</script>
+{% endblock %}

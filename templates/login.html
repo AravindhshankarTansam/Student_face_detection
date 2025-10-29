@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Face Login - TANSAM{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <h1>👤 Face Login</h1>
+    <div class="login-camera-container">
+       <img id="login-feed" src="/video_feed?t=login" alt="Live Camera Feed">
+    </div>
+    <div class="login-status" id="login-status">Waiting for face recognition...</div>
+    <button class="login-button" onclick="stopLogin()">⏹ Stop & Return Home</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function stopLogin(){
+    fetch('/stop_camera').then(() => { window.location.href = '/'; });
+}
+
+// Poll the server for recognition status
+async function checkRecognition(){
+    try{
+        const res = await fetch('/api/login_status');
+        const data = await res.json();
+        const statusDiv = document.getElementById('login-status');
+        if(data.success){
+            statusDiv.style.color = 'green';
+            statusDiv.innerText = `Welcome ${data.name}! Login Successful.`;
+            setTimeout(() => { window.location.href = '/view_logins'; }, 1000);
+        } else if(data.detected){
+            statusDiv.style.color = 'red';
+            statusDiv.innerText = `Unauthorized person detected!`;
+        } else {
+            statusDiv.style.color = 'blue';
+            statusDiv.innerText = 'Waiting for face...';
+        }
+    } catch(e){
+        console.error(e);
+    }
+}
+
+// Check every 1 second
+setInterval(checkRecognition, 1000);
+</script>
+{% endblock %}
