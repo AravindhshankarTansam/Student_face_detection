@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard - TANSAM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="title">Admin Dashboard</h2>
+    <p style="margin-bottom: 20px;">Welcome, {{ session['admin'] }}!</p>
+
+    <div class="stats" style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap;">
+        <div class="card" style="background:#f5f9ff; padding:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:200px;">
+            <h3>Total Employees</h3>
+            <p style="font-size:1.8em; color:#004e92; font-weight:bold;">{{ persons | length }}</p>
+        </div>
+        <div class="card" style="background:#f5f9ff; padding:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:200px;">
+            <h3>Today's Attendance</h3>
+            <p style="font-size:1.8em; color:#004e92; font-weight:bold;">{{ attendance | length }}</p>
+        </div>
+    </div>
+
+    <div class="actions" style="margin-top:40px;">
+        <a href="/register" class="login-button">Add Employee</a>
+        <a href="/admin_logout" class="login-button" style="background:#e63946;">Logout</a>
+    </div>
+
+    <hr style="margin:40px 0;">
+
+    <!-- ✅ Employee List Table -->
+    <h3 style="color:#004e92;">Employee List</h3>
+    <table border="1" cellpadding="10" cellspacing="0" style="margin:auto; border-collapse:collapse; width:90%; text-align:center;">
+        <tr style="background:#004e92; color:white;">
+            <th>ID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Email</th>
+        </tr>
+        {% for person in persons %}
+        <tr>
+            <td>{{ person['id'] }}</td>
+            <td>{{ person['name'] }}</td>
+            <td>{{ person['department'] }}</td>
+            <td>{{ person['email'] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">No employees found.</td></tr>
+        {% endfor %}
+    </table>
+
+    <hr style="margin:40px 0;">
+
+    <!-- ✅ Today's Attendance Table -->
+    <h3 style="color:#004e92;">Today's Attendance</h3>
+    <table border="1" cellpadding="10" cellspacing="0" style="margin:auto; border-collapse:collapse; width:90%; text-align:center;">
+        <tr style="background:#004e92; color:white;">
+            <th>ID</th>
+            <th>Name</th>
+            <th>Time In</th>
+        </tr>
+        {% for entry in attendance %}
+        <tr>
+            <td>{{ entry['id'] }}</td>
+            <td>{{ entry['name'] }}</td>
+            <td>{{ entry['time_in'] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3">No attendance records for today.</td></tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}

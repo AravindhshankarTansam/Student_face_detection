@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Error - TANSAM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>⚠️ Error</h1>
+    <p>{{ message }}</p>
+    <button onclick="window.location.href='/'">🏠 Back to Home</button>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .container {
+        max-width: 600px;
+        background: white;
+        border-radius: 25px;
+        padding: 50px;
+        text-align: center;
+        box-shadow: 0 25px 70px rgba(0,0,0,0.4);
+        animation: shake 0.5s;
+    }
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+    }
+    h1 {
+        color: #dc3545;
+        margin-bottom: 25px;
+        font-size: 3em;
+        font-weight: 700;
+    }
+    p {
+        color: #666;
+        font-size: 1.3em;
+        margin-bottom: 35px;
+        line-height: 1.6;
+    }
+    button {
+        padding: 15px 35px;
+        font-size: 17px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+</style>
+{% endblock %}

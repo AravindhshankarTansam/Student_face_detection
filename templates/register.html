@@ -1,0 +1,721 @@
+{% extends "base.html" %}
+
+{% block title %}Register Person - TANSAM{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #DFE9EF;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    main {
+        flex: 1;
+        padding: 20px;
+    }
+    .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 25px;
+        padding: 40px;
+        box-shadow: 0 25px 70px rgba(0,0,0,0.4);
+        animation: slideIn 0.5s ease-out;
+    }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-50px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    h1 {
+        text-align: center;
+        color: #004e92;
+        margin-bottom: 40px;
+        font-size: 2.5em;
+        font-weight: 700;
+    }
+    .form-group { margin-bottom: 25px; }
+    label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 600;
+        color: #004e92;
+        font-size: 1.1em;
+    }
+    input {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #004e92;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: all 0.3s;
+    }
+    input:focus {
+        outline: none;
+        border-color: #004e92;
+        box-shadow: 0 0 0 3px rgba(0, 78, 146, 0.2);
+    }
+    .camera-container {
+        margin: 30px 0;
+        background: #000;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    #video-feed {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+    .angle-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 15px;
+        margin: 30px 0;
+    }
+    .angle-btn {
+        padding: 20px;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .angle-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .angle-btn.front,
+    .angle-btn.left,
+    .angle-btn.right,
+    .angle-btn.up,
+    .angle-btn.down {
+        background: #004e92;
+    }
+    .angle-btn:not(:disabled):hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .angle-btn.captured {
+        background: linear-gradient(135deg, #56ab2f, #a8e063);
+    }
+    .angle-btn.captured::after {
+        content: '✓';
+        position: absolute;
+        top: 5px;
+        right: 10px;
+        font-size: 24px;
+    }
+    .button-group {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 30px;
+        flex-wrap: wrap;
+    }
+    button {
+        padding: 15px 35px;
+        font-size: 17px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 600;
+    }
+    .btn-primary {
+        background: #004e92;
+        color: white;
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,78,146,0.4);
+    }
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    .btn-secondary:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+    }
+    .btn-success {
+        background: linear-gradient(135deg, #56ab2f, #a8e063);
+        color: white;
+        font-size: 18px;
+        padding: 18px 40px;
+    }
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(86,171,47,0.4);
+    }
+    .status {
+        text-align: center;
+        padding: 20px;
+        margin: 25px 0;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1.1em;
+        animation: fadeIn 0.5s;
+    }
+    .status.info {
+        background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+        color: #004e92;
+    }
+    .status.success {
+        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        color: #155724;
+    }
+    .status.error {
+        background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+        color: #721c24;
+    }
+    .status.warning {
+        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+        color: #856404;
+    }
+    #step1, #step2, #step3 { display: none; }
+
+    .progress-container { margin: 25px 0; }
+    .progress {
+        width: 100%;
+        height: 40px;
+        background: #e9ecef;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .progress-bar {
+        height: 100%;
+        background: #004e92;
+        transition: width 0.5s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    .instructions {
+        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+        padding: 20px;
+        border-radius: 12px;
+        margin: 20px 0;
+        border-left: 5px solid #004e92;
+    }
+    .instructions h3 {
+        color: #004e92;
+        margin-bottom: 10px;
+        font-size: 1.2em;
+    }
+    .instructions ul {
+        margin-left: 20px;
+        color: #004e92;
+    }
+    .instructions li {
+        margin: 8px 0;
+        line-height: 1.6;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    .pulse { animation: pulse 2s infinite; }
+
+    .capture-mode-selector {
+        margin: 30px 0;
+        padding: 20px;
+        background: #DFE9EF;
+        border-radius: 15px;
+    }
+
+    .mode-info { animation: fadeIn 0.5s ease-in; }
+
+    .arrow-track {
+        position: relative;
+        width: 100%;
+        height: 60px;
+        background: #004e92;
+        border-radius: 30px;
+        margin: 20px 0;
+        overflow: hidden;
+        box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    .moving-arrow {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 40px;
+        color: white;
+        transition: right 15s linear;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .moving-arrow.animating {
+        right: calc(100% - 50px);
+    }
+
+    .capture-counter {
+        text-align: center;
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #004e92;
+        padding: 15px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    #current-capture {
+        color: #004e92;
+        font-size: 1.2em;
+    }
+
+    .full-view-progress { margin: 20px 0; }
+
+    #progress-text {
+        white-space: nowrap;
+        padding: 0 10px;
+    }
+
+    .progress-bar { min-width: 200px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>👤 Register New Person</h1>
+    <div id="step1" style="display: block;">
+        <div class="instructions">
+            <h3>📝 Registration Instructions</h3>
+            <ul>
+                <li>Enter your full name and ID</li>
+                <li>You'll capture 5 photos from different angles</li>
+                <li>Follow the on-screen prompts for each angle</li>
+                <li>Ensure good lighting and clear face visibility</li>
+            </ul>
+        </div>
+        <div class="form-group">
+            <label>Full Name:</label>
+            <input type="text" id="name" placeholder="Enter your full name">
+        </div>
+        <div class="form-group">
+            <label>Employee/Student ID:</label>
+            <input type="text" id="employee_id" placeholder="Enter your unique ID">
+        </div>
+        <div class="button-group">
+            <button class="btn-primary" onclick="startRegistration()">🚀 Start Registration</button>
+            <button class="btn-secondary" onclick="window.location.href='/'">❌ Cancel</button>
+        </div>
+    </div>
+    <div id="step2">
+        <div class="status info" id="capture-status">
+            <p>📸 Position your face and select an angle to capture</p>
+        </div>
+        <div class="progress-container">
+            <div class="progress">
+                <div class="progress-bar" id="progress-bar" style="width: 0%">
+                  <span id="progress-text">Step 1: 0/5 Manual</span>
+                </div>
+            </div>
+        </div>
+        <div class="camera-container">
+            <img src="/video_feed?t=registration" id="video-feed" alt="Camera Feed" style="display:block;">
+        </div>
+        <div class="capture-mode-selector">
+            <h3 style="text-align: center; margin-bottom: 20px; color: #333;">Registration Process:</h3>
+            <div class="mode-info" style="text-align: center; padding: 15px; background: linear-gradient(135deg, #d1f2eb, #a8e6cf); border-radius: 10px; margin-bottom: 20px;">
+                <p style="color: #155724; font-weight: 600; font-size: 1.1em;">
+                    📸 Step 1: Capture 5 Key Angles (Manual)<br>
+                    <small>Then proceed to Step 2</small>
+                </p>
+            </div>
+        </div>
+
+        <!-- STEP 1: Manual 5 Angles -->
+        <div id="manual-capture-section">
+            <div class="angle-buttons">
+                <button class="angle-btn front" id="btn-front" onclick="captureAngle('front')">
+                    📷 Front<br><small>Look straight ahead</small>
+                </button>
+                <button class="angle-btn left" id="btn-left" onclick="captureAngle('left')">
+                    ⬅️ Left<br><small>Turn left 45°</small>
+                </button>
+                <button class="angle-btn right" id="btn-right" onclick="captureAngle('right')">
+                    ➡️ Right<br><small>Turn right 45°</small>
+                </button>
+                <button class="angle-btn up" id="btn-up" onclick="captureAngle('up')">
+                    ⬆️ Look Up<br><small>Tilt head up</small>
+                </button>
+                <button class="angle-btn down" id="btn-down" onclick="captureAngle('down')">
+                    ⬇️ Look Down<br><small>Tilt head down</small>
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 2: Full View Capture -->
+        <div id="auto-capture-section" style="display: none;">
+            <div class="mode-info" style="text-align: center; padding: 15px; background: linear-gradient(135deg, #fff3cd, #ffeaa7); border-radius: 10px; margin-bottom: 20px;">
+                <p style="color: #856404; font-weight: 600; font-size: 1.1em;">
+                    🎬 Step 2: Full View Capture (45 images)<br>
+                    <small>Move from RIGHT to LEFT</small>
+                </p>
+            </div>
+            
+            <div class="instructions" style="background: linear-gradient(135deg, #d1f2eb, #a8e6cf);">
+                <h3 style="color: #155724;">🎬 Full View Instructions</h3>
+                <ul style="color: #155724;">
+                    <li>Click "Start Full Capture" below</li>
+                    <li>Stand on the RIGHT side of the camera view</li>
+                    <li>Slowly move from RIGHT to LEFT following the arrow</li>
+                    <li>Keep your face visible at all times</li>
+                    <li>Complete the movement within 15 seconds</li>
+                </ul>
+            </div>
+            
+            <div class="full-view-progress" id="full-view-progress" style="display: none;">
+                <div class="arrow-track">
+                    <div class="moving-arrow" id="moving-arrow">➡️</div>
+                </div>
+                <div class="capture-counter" id="capture-counter">
+                    Capturing: <span id="current-capture">0</span> / 45
+                </div>
+            </div>
+            
+            <button class="angle-btn" id="start-full-capture-btn" onclick="startFullCapture()" 
+                    style="background: linear-gradient(135deg, #56ab2f, #a8e063); width: 100%; max-width: 400px; margin: 20px auto; display: block; padding: 25px;">
+                🎬 Start Full Capture<br><small>45 images in 15 seconds</small>
+            </button>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <p style="color: #666; font-size: 0.9em;">After full capture completes, click "Complete Registration" below</p>
+            </div>
+        </div>
+        <div class="button-group">
+            <button class="btn-success" onclick="completeRegistration()" id="complete-btn" disabled>
+                ✅ Complete Registration
+            </button>
+            <button class="btn-secondary" onclick="cancelRegistration()">❌ Cancel</button>
+        </div>
+    </div>
+    <div id="step3">
+        <div class="status success">
+            <p>🎉 Registration Completed Successfully!</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">You can now use the attendance system</p>
+        </div>
+        <div class="button-group">
+            <button class="btn-primary" onclick="window.location.href='/'">🏠 Back to Home</button>
+            <button class="btn-secondary" onclick="window.location.reload()">➕ Register Another Person</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let name, employee_id;
+    let capturedAngles = [];
+    const requiredAngles = ['front', 'left', 'right', 'up', 'down'];
+    let manualCapturesComplete = false;
+    let fullViewCapturesComplete = false;
+    let fullViewInterval = null;
+    const REQUIRED_MANUAL = 5;
+    const REQUIRED_FULL_VIEW = 45;
+    
+    function startRegistration() {
+        name = document.getElementById('name').value.trim();
+        employee_id = document.getElementById('employee_id').value.trim();
+
+        if (!name || !employee_id) {
+            alert('⚠️ Please enter both name and ID');
+            return;
+        }
+
+        if (name.length < 2) {
+            alert('⚠️ Name must be at least 2 characters');
+            return;
+        }
+
+        fetch('/api/start_registration', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, employee_id})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('step1').style.display = 'none';
+                document.getElementById('step2').style.display = 'block';
+                updateStatus('info', '⏳ Initializing camera... Please wait.');
+                
+                // Force reload video feed with cache buster
+                const videoFeed = document.getElementById('video-feed');
+                videoFeed.src = '/video_feed?t=registration&' + new Date().getTime();
+                
+                // Wait for camera to be ready
+                setTimeout(() => {
+                    updateStatus('info', '📸 Camera ready! Capture your face from all 5 angles. Start with the FRONT view!');
+                }, 2000);
+            } else {
+                alert('❌ ' + data.message);
+            }
+        })
+        .catch(err => {
+            alert('❌ Error: ' + err.message);
+        });
+    }
+    
+    function captureAngle(angle) {
+        if (capturedAngles.includes(angle)) {
+            alert('✓ This angle has already been captured!');
+            return;
+        }
+        
+        const btn = document.getElementById('btn-' + angle);
+        btn.disabled = true;
+        btn.textContent = 'Capturing...';
+        
+        fetch('/api/capture_face', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({angle: angle})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                capturedAngles.push(angle);
+                btn.classList.add('captured');
+                btn.disabled = false;
+                
+                const angleNames = {
+                    'front': 'Front',
+                    'left': 'Left',
+                    'right': 'Right',
+                    'up': 'Look Up',
+                    'down': 'Look Down'
+                };
+                btn.innerHTML = `✓ ${angleNames[angle]}<br><small>Captured!</small>`;
+                
+                // Update progress
+                updateOverallProgress();
+                
+                if (capturedAngles.length >= REQUIRED_MANUAL) {
+                    manualCapturesComplete = true;
+                    updateStatus('success', '🎉 Step 1 Complete! Now proceed to Step 2 - Full View Capture');
+                    
+                    // Show Step 2
+                    document.getElementById('auto-capture-section').style.display = 'block';
+                    
+                    // Scroll to Step 2
+                    document.getElementById('auto-capture-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                    const remaining = REQUIRED_MANUAL - capturedAngles.length;
+                    updateStatus('info', `✅ ${angleNames[angle]} captured! ${remaining} more angle(s) to go.`);
+                }
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `${btn.innerHTML.split('<br>')[0]}<br><small>Try again</small>`;
+                alert('❌ ' + data.message);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            alert('❌ Error: ' + err.message);
+        });
+    }
+    
+    function completeRegistration() {
+        if (!manualCapturesComplete) {
+            alert('⚠️ Please complete Step 1 (5 manual angles) first!');
+            return;
+        }
+        
+        if (!fullViewCapturesComplete) {
+            alert('⚠️ Please complete Step 2 (full view capture) first!');
+            return;
+        }
+        
+        updateStatus('info', '⏳ Processing all 50 images... Please wait.');
+        document.getElementById('complete-btn').disabled = true;
+        
+        fetch('/api/complete_registration', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, employee_id})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('step2').style.display = 'none';
+                document.getElementById('step3').style.display = 'block';
+            } else {
+                alert('❌ Registration failed: ' + data.message);
+                document.getElementById('complete-btn').disabled = false;
+            }
+        })
+        .catch(err => {
+            alert('❌ Error: ' + err.message);
+            document.getElementById('complete-btn').disabled = false;
+        });
+    }
+    
+    function cancelRegistration() {
+        if (confirm('⚠️ Are you sure you want to cancel? All captured photos will be lost.')) {
+            window.location.href = '/stop_camera';
+        }
+    }
+    
+    function updateStatus(type, message) {
+        const statusDiv = document.getElementById('capture-status');
+        statusDiv.className = 'status ' + type;
+        statusDiv.innerHTML = '<p>' + message + '</p>';
+    }
+
+    function updateOverallProgress() {
+        const manualCount = capturedAngles.length;
+        const fullViewCount = fullViewCapturesComplete ? REQUIRED_FULL_VIEW : 0;
+        const totalCaptured = manualCount + fullViewCount;
+        const totalRequired = REQUIRED_MANUAL + REQUIRED_FULL_VIEW;
+        
+        const percentage = (totalCaptured / totalRequired) * 100;
+        document.getElementById('progress-bar').style.width = percentage + '%';
+        
+        let progressText = '';
+        if (!manualCapturesComplete) {
+            progressText = `Step 1: ${manualCount}/${REQUIRED_MANUAL} Manual`;
+        } else if (!fullViewCapturesComplete) {
+            progressText = `Step 1: ✓ | Step 2: In Progress`;
+        } else {
+            progressText = `Complete: ${totalCaptured}/${totalRequired} Images`;
+        }
+        
+        document.getElementById('progress-text').textContent = progressText;
+        
+        // Enable complete button only when both steps are done
+        const completeBtn = document.getElementById('complete-btn');
+        if (manualCapturesComplete && fullViewCapturesComplete) {
+            completeBtn.disabled = false;
+            completeBtn.classList.add('pulse');
+            updateStatus('success', '🎉 All 50 images captured! Click "Complete Registration" to finish.');
+        }
+    }
+
+    function startFullCapture() {
+        if (!manualCapturesComplete) {
+            alert('⚠️ Please complete Step 1 (5 manual angles) first!');
+            return;
+        }
+        
+        const btn = document.getElementById('start-full-capture-btn');
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Preparing...<br><small>Get ready!</small>';
+        
+        updateStatus('warning', '🎬 Get ready! Stand on the RIGHT side of the camera...');
+        
+        // 3 second countdown
+        let countdown = 3;
+        const countdownInterval = setInterval(() => {
+            updateStatus('warning', `🎬 Starting in ${countdown}...`);
+            countdown--;
+            
+            if (countdown < 0) {
+                clearInterval(countdownInterval);
+                beginFullCapture();
+            }
+        }, 1000);
+    }
+
+    function beginFullCapture() {
+        updateStatus('info', '🎬 CAPTURING! Move slowly from RIGHT to LEFT following the arrow!');
+        
+        // Show progress indicators
+        document.getElementById('full-view-progress').style.display = 'block';
+        document.getElementById('moving-arrow').classList.add('animating');
+        
+        let captureCount = 0;
+        const captureInterval = 333; // ~15 seconds / 45 captures = 333ms
+        
+        fullViewInterval = setInterval(() => {
+            captureFullViewFrame(captureCount);
+            captureCount++;
+            
+            document.getElementById('current-capture').textContent = captureCount;
+            
+            if (captureCount >= REQUIRED_FULL_VIEW) {
+                clearInterval(fullViewInterval);
+                completeFullCapture();
+            }
+        }, captureInterval);
+    }
+
+    function captureFullViewFrame(index) {
+        fetch('/api/capture_full_view_frame', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({frame_index: index})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                console.error('Frame capture failed:', data.message);
+            }
+        })
+        .catch(err => {
+            console.error('Error capturing frame:', err);
+        });
+    }
+
+    function completeFullCapture() {
+        document.getElementById('moving-arrow').classList.remove('animating');
+        fullViewCapturesComplete = true;
+        
+        updateOverallProgress();
+        updateStatus('success', '🎉 Step 2 Complete! All 50 images captured. Click "Complete Registration" below.');
+        
+        document.getElementById('start-full-capture-btn').disabled = true;
+        document.getElementById('start-full-capture-btn').innerHTML = '✅ Captured<br><small>45 images complete!</small>';
+        document.getElementById('start-full-capture-btn').style.background = 'linear-gradient(135deg, #28a745, #20c997)';
+        
+        // Scroll to complete button
+        document.getElementById('complete-btn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    // Auto-refresh video feed to prevent freezing
+    setInterval(function() {
+        if (document.getElementById('step2').style.display === 'block') {
+            const videoFeed = document.getElementById('video-feed');
+            const currentTime = new Date().getTime();
+            // Update src with cache buster
+            const baseSrc = '/video_feed?t=registration';
+            videoFeed.src = baseSrc + '&rand=' + currentTime;
+        }
+    }, 15000); // Refresh every 15 seconds
+
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.target.id === 'step2' && 
+                mutation.target.style.display === 'block') {
+                const videoFeed = document.getElementById('video-feed');
+                videoFeed.src = '/video_feed?t=registration&rand=' + new Date().getTime();
+            }
+        });
+    });
+
+    const step2Element = document.getElementById('step2');
+    if (step2Element) {
+        observer.observe(step2Element, {
+            attributes: true,
+            attributeFilter: ['style']
+        });
+    }
+</script>
+{% endblock %}
